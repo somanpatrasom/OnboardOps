@@ -1,0 +1,100 @@
+===== 1. Users and group membership (id) =====
+[asha]$ id
+uid=1021(asha) gid=1023(asha) groups=1023(asha),1004(devteam)
+
+[ravi]$ id
+uid=1022(ravi) gid=1024(ravi) groups=1024(ravi),1004(devteam)
+
+[meera]$ id
+uid=1023(meera) gid=1025(meera) groups=1025(meera),1004(devteam)
+
+
+===== 2. Superuser access (sudo -l): only asha allowed =====
+# ls -l /etc/sudoers.d/90-asha; cat /etc/sudoers.d/90-asha
+-r--r----- 1 root root 19 Sep 20 20:03 /etc/sudoers.d/90-asha
+asha ALL=(ALL) ALL
+
+# sudo -l -U asha
+Matching Defaults entries for asha on KIIT2774:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin,
+    use_pty
+
+User asha may run the following commands on KIIT2774:
+    (ALL) ALL
+
+# sudo -l -U ravi
+User ravi is not allowed to run sudo on KIIT2774.
+
+# sudo -l -U meera
+User meera is not allowed to run sudo on KIIT2774.
+
+
+===== 3. Shared folder permissions (ls -ld): expect drwxrws--T root devteam =====
+# ls -ld /shared/project
+drwxrws--T 2 root devteam 4096 Sep 20 19:58 /shared/project
+
+
+===== 4. SGID + umask: asha creates a file (expect group devteam, mode -rw-rw----) =====
+[asha]$ umask
+0007
+
+[ravi]$ umask
+0007
+
+[meera]$ umask
+0007
+
+[asha]$ echo 'created by asha' > /shared/project/a.txt; ls -l /shared/project/a.txt
+-rw-rw---- 1 asha devteam 16 Sep 20 20:03 /shared/project/a.txt
+
+
+===== 5. Group-writable: ravi edits asha's file =====
+[ravi]$ echo 'edited by ravi' >> /shared/project/a.txt && cat /shared/project/a.txt
+-bash: line 1: /shared/project/a.txt: Permission denied
+
+
+===== 6. Sticky bit: ravi and meera cannot delete/rename asha's file =====
+[ravi]$ rm /shared/project/a.txt
+rm: cannot remove '/shared/project/a.txt': Operation not permitted
+
+[meera]$ mv /shared/project/a.txt /shared/project/b.txt
+mv: cannot move '/shared/project/a.txt' to '/shared/project/b.txt': Operation not permitted
+
+# ls -l /shared/project
+total 4
+-rw-rw---- 1 asha devteam 16 Sep 20 20:03 a.txt
+
+
+===== 7. Others are locked out (user 'nobody') =====
+# runuser -u nobody -- ls /shared/project
+ls: cannot open directory '/shared/project': Permission denied
+
+
+===== 8. Password policy (chage -l): max 60, warn 7, must change at first login =====
+# chage -l asha
+Last password change                                    : password must be changed
+Password expires                                        : password must be changed
+Password inactive                                       : password must be changed
+Account expires                                         : never
+Minimum number of days between password change          : 0
+Maximum number of days between password change          : 60
+Number of days of warning before password expires       : 7
+
+# chage -l ravi
+Last password change                                    : password must be changed
+Password expires                                        : password must be changed
+Password inactive                                       : password must be changed
+Account expires                                         : never
+Minimum number of days between password change          : 0
+Maximum number of days between password change          : 60
+Number of days of warning before password expires       : 7
+
+# chage -l meera
+Last password change                                    : password must be changed
+Password expires                                        : password must be changed
+Password inactive                                       : password must be changed
+Account expires                                         : never
+Minimum number of days between password change          : 0
+Maximum number of days between password change          : 60
+Number of days of warning before password expires       : 7
